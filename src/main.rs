@@ -1,11 +1,16 @@
 use axum::{
     routing::get,
     Router,
+    
+};
+use axum::http::{
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    HeaderValue, Method,
 };
 use lazy_static::lazy_static;
 use postgrest::Postgrest;
 use reqwest::Error;
-
+use tower_http::cors::CorsLayer;
 lazy_static! {
     static ref CLIENT: Postgrest = {
         let client = Postgrest::new("https://figcmvgsmtwnayohdiik.supabase.co/rest/v1/")
@@ -21,7 +26,7 @@ pub fn create_router() -> Router {
     Router::new()
         .route("/users", get(get_users))
         
-        .route("/books", get(get_books))
+        .route("/clients", get(get_books))
         
 }
 
@@ -62,12 +67,18 @@ async fn get_books() -> String {
 }
 
 async fn fetch_books() -> Result<reqwest::Response, Error> {
-    CLIENT.from("books").select("*").execute().await
+    CLIENT.from("clients").select("*").execute().await
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let app = create_router();
+    let cors = CorsLayer::new()
+    .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+    .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+    .allow_credentials(true)
+    .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
+
+let app = create_router().layer(cors);
     println!("🚀 Server started successfully");
     
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
